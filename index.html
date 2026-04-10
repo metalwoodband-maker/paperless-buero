@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PapierlosesBüro</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --font: 'IBM Plex Sans', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+    --bg: #f5f4f1;
+    --surface: #ffffff;
+    --border: #e2e0db;
+    --border2: #ccc9c2;
+    --text: #1a1917;
+    --muted: #6b6860;
+    --hint: #9b9890;
+    --accent: #1a56a4;
+    --accent-bg: #e8f0fb;
+    --accent-border: #b3cdf0;
+    --success: #2d6a1f;
+    --success-bg: #eaf3e6;
+    --warn: #8a5c00;
+    --warn-bg: #fdf3dc;
+    --danger: #9b2020;
+    --danger-bg: #fdeaea;
+    --r: 8px;
+    --r2: 12px;
+  }
+
+  html, body { height: 100%; overflow: hidden; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+
+  /* LAYOUT */
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  .titlebar {
+    height: 48px; display: flex; align-items: center;
+    padding: 0 16px; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    -webkit-app-region: drag; user-select: none; flex-shrink: 0;
+    gap: 12px;
+  }
+  .titlebar-drag { flex: 1; }
+  .tb-logo { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; -webkit-app-region: no-drag; }
+  .tb-logo-box { width: 28px; height: 28px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+  .tb-logo-box svg { width: 16px; height: 16px; }
+  .tb-tabs { display: flex; gap: 2px; -webkit-app-region: no-drag; }
+  .tb-tab { padding: 5px 14px; font-size: 13px; border: 1px solid transparent; border-radius: var(--r); cursor: pointer; color: var(--muted); background: transparent; font-family: var(--font); transition: all 0.12s; }
+  .tb-tab:hover { background: var(--bg); color: var(--text); }
+  .tb-tab.active { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-border); font-weight: 500; }
+  .tb-right { display: flex; align-items: center; gap: 8px; -webkit-app-region: no-drag; font-size: 12px; color: var(--muted); }
+  .ki-dot { width: 7px; height: 7px; border-radius: 50%; background: #4caf50; display: inline-block; }
+
+  .body { display: flex; flex: 1; overflow: hidden; }
+
+  /* SIDEBAR */
+  .sidebar { width: 210px; min-width: 210px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 10px 8px; gap: 2px; overflow-y: auto; }
+  .sb-label { font-size: 10px; color: var(--hint); text-transform: uppercase; letter-spacing: 0.07em; padding: 10px 8px 4px; }
+  .sb-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--r); cursor: pointer; font-size: 13px; color: var(--muted); transition: all 0.1s; border: 1px solid transparent; }
+  .sb-item:hover { background: var(--bg); color: var(--text); }
+  .sb-item.active { background: var(--accent-bg); color: var(--accent); font-weight: 500; border-color: var(--accent-border); }
+  .sb-count { margin-left: auto; font-size: 11px; background: var(--bg); border-radius: 10px; padding: 1px 7px; color: var(--muted); }
+  .sb-item.active .sb-count { background: var(--accent-border); color: var(--accent); }
+  .sb-bottom { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); }
+  .sb-stat { padding: 8px 10px; }
+  .sb-stat-label { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+  .sb-stat-val { font-size: 24px; font-weight: 500; color: var(--text); }
+
+  /* MAIN */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .panel { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+  .panel.visible { display: flex; }
+
+  /* UPLOAD */
+  .drop-zone {
+    margin: 16px; border: 2px dashed var(--border2); border-radius: var(--r2);
+    padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s;
+    background: var(--surface); flex-shrink: 0;
+  }
+  .drop-zone:hover, .drop-zone.drag { border-color: var(--accent); background: var(--accent-bg); }
+  .dz-icon { font-size: 36px; margin-bottom: 8px; }
+  .dz-title { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+  .dz-sub { font-size: 13px; color: var(--muted); }
+  .dz-btns { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+
+  .queue { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
+
+  .qi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); padding: 14px; margin-bottom: 10px; }
+  .qi-head { display: flex; align-items: center; gap: 10px; }
+  .qi-icon { width: 38px; height: 38px; border-radius: 8px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .qi-name { font-size: 13px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .qi-size { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+  .badge { padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; flex-shrink: 0; }
+  .b-pending  { background: var(--bg); color: var(--muted); }
+  .b-analyzing{ background: var(--warn-bg); color: var(--warn); }
+  .b-done     { background: var(--success-bg); color: var(--success); }
+  .b-error    { background: var(--danger-bg); color: var(--danger); }
+  .progress { height: 3px; background: var(--bg); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .prog-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s; }
+
+  .qi-result { margin-top: 10px; background: var(--bg); border-radius: var(--r); padding: 10px 12px; font-size: 12px; }
+  .qr-row { display: flex; gap: 8px; margin-bottom: 4px; }
+  .qr-row:last-child { margin-bottom: 0; }
+  .qr-label { color: var(--muted); min-width: 90px; flex-shrink: 0; }
+  .qr-val { color: var(--text); font-weight: 500; word-break: break-all; }
+  .qr-val.accent { color: var(--accent); font-family: var(--mono); font-size: 11px; }
+  .qr-val.path { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .tag { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; margin: 2px 2px 0 0; background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-border); }
+
+  .qi-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .btn { padding: 6px 14px; font-size: 12px; border: 1px solid var(--border); border-radius: var(--r); cursor: pointer; background: var(--surface); color: var(--text); font-family: var(--font); transition: all 0.12s; }
+  .btn:hover { background: var(--bg); }
+  .btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn.primary:hover { opacity: 0.88; }
+  .btn.danger { color: var(--danger); border-color: #f0b3b3; }
+  .btn.danger:hover { background: var(--danger-bg); }
+  .btn.icon { padding: 6px 10px; }
+
+  /* ARCHIVE */
+  .arch-toolbar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--surface); }
+  .search { flex: 1; padding: 7px 12px; border: 1px solid var(--border); border-radius: var(--r); font-size: 13px; background: var(--bg); color: var(--text); outline: none; font-family: var(--font); }
+  .search:focus { border-color: var(--accent); background: var(--surface); }
+  .fselect { padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--r); font-size: 12px; background: var(--bg); color: var(--text); cursor: pointer; font-family: var(--font); }
+  .doc-grid { flex: 1; overflow-y: auto; padding: 14px 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px,1fr)); gap: 10px; align-content: start; }
+  .doc-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); padding: 14px; cursor: pointer; transition: all 0.15s; }
+  .doc-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+  .dc-icon { font-size: 28px; margin-bottom: 8px; }
+  .dc-name { font-size: 12px; font-weight: 500; word-break: break-word; line-height: 1.4; margin-bottom: 4px; }
+  .dc-meta { font-size: 11px; color: var(--muted); }
+  .dc-path { font-size: 10px; color: var(--hint); margin-top: 4px; font-family: var(--mono); word-break: break-all; }
+  .dc-tags { margin-top: 6px; }
+
+  /* SETTINGS */
+  .settings-body { flex: 1; overflow-y: auto; padding: 20px; }
+  .s-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r2); margin-bottom: 14px; overflow: hidden; }
+  .s-head { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .s-row { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 16px; }
+  .s-row:last-child { border-bottom: none; }
+  .s-info { flex: 1; }
+  .s-title { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+  .s-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .s-ctrl { min-width: 220px; width: 220px; }
+  input[type=text], input[type=password], textarea, select {
+    width: 100%; padding: 7px 10px; font-size: 13px;
+    border: 1px solid var(--border); border-radius: var(--r);
+    background: var(--bg); color: var(--text); outline: none;
+    font-family: var(--font);
+  }
+  input[type=text]:focus, input[type=password]:focus, textarea:focus, select:focus { border-color: var(--accent); background: var(--surface); }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.5; font-size: 12px; }
+
+  .toggle { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .tslider { position: absolute; inset: 0; border-radius: 11px; background: var(--border2); cursor: pointer; transition: 0.2s; }
+  .toggle input:checked + .tslider { background: var(--accent); }
+  .tslider::before { content:''; position:absolute; left:2px; top:2px; width:16px; height:16px; border-radius:50%; background:white; transition:0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+  .toggle input:checked + .tslider::before { transform: translateX(16px); }
+
+  .folder-list { display: flex; flex-direction: column; gap: 5px; }
+  .folder-row { display: flex; align-items: center; gap: 6px; background: var(--bg); border-radius: var(--r); padding: 6px 10px; font-size: 12px; }
+  .fr-key { font-weight: 500; min-width: 100px; color: var(--text); }
+  .fr-path { flex: 1; color: var(--muted); font-family: var(--mono); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fr-btn { padding: 3px 8px; font-size: 11px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--muted); cursor: pointer; flex-shrink: 0; font-family: var(--font); }
+  .fr-btn:hover { color: var(--text); }
+  .add-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--accent); background: var(--accent-bg); border: 1px solid var(--accent-border); border-radius: var(--r); padding: 6px 12px; cursor: pointer; margin-top: 6px; }
+  .add-btn:hover { opacity: 0.85; }
+  .save-bar { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; background: var(--surface); flex-shrink: 0; }
+  .btn-lg { padding: 8px 20px; font-size: 13px; font-family: var(--font); border-radius: var(--r); cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+  .btn-lg:hover { background: var(--bg); }
+  .btn-lg.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn-lg.primary:hover { opacity: 0.88; }
+
+  .chip { display: inline-flex; align-items: center; padding: 2px 7px; background: var(--bg); border: 1px solid var(--border); border-radius: 20px; font-size: 11px; color: var(--muted); font-family: var(--mono); margin: 1px; }
+  .preview-name { margin-top: 6px; padding: 7px 10px; background: var(--success-bg); border: 1px solid #b5d9a8; border-radius: var(--r); font-family: var(--mono); font-size: 11px; color: var(--success); word-break: break-all; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 20px; right: 20px; background: var(--text); color: var(--surface); padding: 10px 16px; border-radius: var(--r); font-size: 13px; opacity: 0; transform: translateY(6px); transition: all 0.22s; pointer-events: none; z-index: 999; max-width: 320px; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* EMPTY */
+  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); gap: 8px; text-align: center; padding: 40px; }
+  .empty-icon { font-size: 44px; opacity: 0.35; margin-bottom: 4px; }
+
+  /* APIKEY BANNER */
+  .api-banner { margin: 12px 16px 0; padding: 10px 14px; background: var(--warn-bg); border: 1px solid #e8c97a; border-radius: var(--r); font-size: 12px; display: flex; align-items: center; gap: 10px; }
+  .api-banner.hidden { display: none; }
+  .api-banner input { flex: 1; font-size: 12px; font-family: var(--mono); }
+
+  scrollbar-width: thin;
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TITLEBAR -->
+  <div class="titlebar">
+    <div class="tb-logo">
+      <div class="tb-logo-box">
+        <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 2h7l3 3v9H3V2z" stroke="white" stroke-width="1.2" stroke-linejoin="round"/>
+          <path d="M10 2v3h3M5 7h6M5 9.5h6M5 12h4" stroke="white" stroke-width="1.1" stroke-linecap="round"/>
+        </svg>
+      </div>
+      PapierlosesBüro
+    </div>
+    <div class="titlebar-drag"></div>
+    <div class="tb-tabs">
+      <button class="tb-tab active" onclick="switchTab('upload',this)">📥 Eingang</button>
+      <button class="tb-tab" onclick="switchTab('archive',this)">🗄️ Archiv</button>
+      <button class="tb-tab" onclick="switchTab('settings',this)">⚙️ Einstellungen</button>
+    </div>
+    <div class="titlebar-drag"></div>
+    <div class="tb-right">
+      <span class="ki-dot"></span> KI aktiv
+      <span id="ver-info" style="color:var(--hint)">v1.0.0</span>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sb-label">Kategorien</div>
+      <div class="sb-item active" onclick="filterCat('all',this)">📂 Alle <span class="sb-count" id="c-all">0</span></div>
+      <div class="sb-item" onclick="filterCat('Rechnung',this)">🧾 Rechnungen <span class="sb-count" id="c-Rechnung">0</span></div>
+      <div class="sb-item" onclick="filterCat('Vertrag',this)">📋 Verträge <span class="sb-count" id="c-Vertrag">0</span></div>
+      <div class="sb-item" onclick="filterCat('Kontoauszug',this)">🏦 Kontoauszüge <span class="sb-count" id="c-Kontoauszug">0</span></div>
+      <div class="sb-item" onclick="filterCat('Behörde',this)">🏛️ Behörden <span class="sb-count" id="c-Behörde">0</span></div>
+      <div class="sb-item" onclick="filterCat('Sonstiges',this)">📁 Sonstiges <span class="sb-count" id="c-Sonstiges">0</span></div>
+      <div class="sb-bottom">
+        <div class="sb-stat">
+          <div class="sb-stat-label">Heute verarbeitet</div>
+          <div class="sb-stat-val" id="today-count">0</div>
+        </div>
+        <div class="sb-stat">
+          <div class="sb-stat-label">Gesamt im Archiv</div>
+          <div class="sb-stat-val" id="total-count">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+      <!-- UPLOAD PANEL -->
+      <div class="panel visible" id="panel-upload">
+        <div class="api-banner" id="api-banner">
+          ⚠️ Kein API-Key. Bitte in Einstellungen hinterlegen.
+          <button class="btn" style="flex-shrink:0" onclick="switchTabById('settings')">Einstellungen öffnen</button>
+        </div>
+        <div class="drop-zone" id="drop-zone"
+          ondragover="event.preventDefault();this.classList.add('drag')"
+          ondragleave="this.classList.remove('drag')"
+          ondrop="handleDrop(event)">
+          <div class="dz-icon">📄</div>
+          <div class="dz-title">Dokumente hier ablegen</div>
+          <div class="dz-sub">PDF, JPG, PNG, TXT — KI erkennt, benennt um und legt ab</div>
+          <div class="dz-btns">
+            <button class="btn primary" onclick="openFileDialog()">📂 Dateien auswählen</button>
+            <button class="btn" onclick="openFolderScan()">📁 Ordner scannen</button>
+          </div>
+        </div>
+        <div class="queue" id="queue">
+          <div class="empty" id="queue-empty">
+            <div class="empty-icon">📥</div>
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Noch keine Dokumente</div>
+            <div>Dateien hochladen oder Ordner scannen</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARCHIVE PANEL -->
+      <div class="panel" id="panel-archive">
+        <div class="arch-toolbar">
+          <input type="text" class="search" placeholder="Suchen…" oninput="renderArchive(this.value)" id="search-inp">
+          <select class="fselect" onchange="renderArchive()" id="sort-sel">
+            <option value="date-desc">Neueste zuerst</option>
+            <option value="date-asc">Älteste zuerst</option>
+            <option value="name">Name A–Z</option>
+            <option value="cat">Kategorie</option>
+          </select>
+          <button class="btn" onclick="openBaseFolder()">📂 Ordner öffnen</button>
+        </div>
+        <div class="doc-grid" id="doc-grid">
+          <div class="empty" style="grid-column:1/-1">
+            <div class="empty-icon">🗄️</div>
+            <div style="font-size:14px;font-weight:500;color:var(--text)">Archiv ist leer</div>
+            <div>Verarbeitete Dokumente erscheinen hier</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS PANEL -->
+      <div class="panel" id="panel-settings">
+        <div class="settings-body">
+
+          <div class="s-section">
+            <div class="s-head">🔑 API-Schlüssel</div>
+            <div class="s-row">
+              <div class="s-info">
+                <div class="s-title">Anthropic API-Key</div>
+                <div class="s-desc">Kostenlos erstellen auf <strong>console.anthropic.com</strong>. Der Schlüssel wird nur lokal auf deinem PC gespeichert.</div>
+              </div>
+              <div class="s-ctrl">
+                <input type="password" id="s-apikey" placeholder="sk-ant-api03-…">
+                <div style="margin-top:6px;display:flex;gap:6px">
+                  <button class="btn" onclick="testApiKey()">Verbindung testen</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="s-section">
+            <div class="s-head">📁 Basis-Ablageordner</div>
+            <div class="s-row">
+              <div class="s-info">
+                <div class="s-title">Stammordner</div>
+                <div class="s-desc">Alle Dokumente werden hier abgelegt. Unterordner werden automatisch erstellt.</div>
+              </div>
+              <div class="s-ctrl">
+                <input type="text" id="s-basepath" placeholder="C:\Dokumente\PapierlosesBüro">
+                <div style="margin-top:6px">
+                  <button class="btn" onclick="selectBaseFolder()">Ordner auswählen</button>
+                </div>
+              </div>
+            </div>
+            <div class="s-row">
+              <div class="s-info">
+                <div class="s-title">Ordner je Kategorie</div>
+                <div class="s-desc">Unterordner-Pfad relativ zum Stammordner. Platzhalter: <span class="chip">{YYYY}</span> <span class="chip">{MM}</span> <span class="chip">{absender}</span></div>
+              </div>
+              <div class="s-ctrl">
+                <div class="folder-list" id="folder-list"></div>
+                <div class="add-btn" onclick="addFolder()">+ Kategorie hinzufügen</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="s-section">
+            <div class="s-head">✏️ Dateiname</div>
+            <div class="s-row">
+              <div class="s-info">
+                <div class="s-title">Namensschema</div>
+                <div class="s-desc">Platzhalter: <span class="chip">{datum}</span> <span class="chip">{absender}</span> <span class="chip">{betreff}</span> <span class="chip">{kategorie}</span></div>
+              </div>
+              <div class="s-ctrl">
+                <input type="text" id="s-schema" oninput="updatePreview()">
+                <div class="preview-name" id="name-preview"></div>
+              </div>
+            </div>
+            <div class="s-row">
+              <div class="s-info"><div class="s-title">Datumsformat</div></div>
+              <div class="s-ctrl">
+                <select id="s-datefmt">
+                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                  <option value="DD.MM.YYYY">DD.MM.YYYY</option>
+                  <option value="YYYYMMDD">YYYYMMDD</option>
+                </select>
+              </div>
+            </div>
+            <div class="s-row">
+              <div class="s-info"><div class="s-title">Trennzeichen</div></div>
+              <div class="s-ctrl">
+                <select id="s-sep">
+                  <option value="-">Bindestrich (-)</option>
+                  <option value="_">Unterstrich (_)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="s-section">
+            <div class="s-head">🤖 KI-Prompt</div>
+            <div class="s-row">
+              <div class="s-info">
+                <div class="s-title">System-Prompt</div>
+                <div class="s-desc">Anweisung für die KI. Muss JSON zurückgeben mit: kategorie, datum, absender, betreff, neuer_dateiname, schlagworte, zusammenfassung.</div>
+              </div>
+              <div class="s-ctrl" style="width:320px;min-width:320px">
+                <textarea id="s-prompt" rows="8"></textarea>
+              </div>
+            </div>
+            <div class="s-row">
+              <div class="s-info"><div class="s-title">Kategorien</div><div class="s-desc">Kommagetrennt</div></div>
+              <div class="s-ctrl"><input type="text" id="s-cats"></div>
+            </div>
+            <div class="s-row">
+              <div class="s-info"><div class="s-title">Automatisch analysieren</div><div class="s-desc">Sofort nach Upload starten</div></div>
+              <div class="s-ctrl" style="display:flex;justify-content:flex-end;align-items:center">
+                <label class="toggle"><input type="checkbox" id="s-auto"><span class="tslider"></span></label>
+              </div>
+            </div>
+            <div class="s-row">
+              <div class="s-info"><div class="s-title">Schlagwörter extrahieren</div></div>
+              <div class="s-ctrl" style="display:flex;justify-content:flex-end;align-items:center">
+                <label class="toggle"><input type="checkbox" id="s-tags"><span class="tslider"></span></label>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="save-bar">
+          <button class="btn-lg" onclick="resetSettings()">Zurücksetzen</button>
+          <button class="btn-lg primary" onclick="saveSettings()">Einstellungen speichern</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const api = window.electronAPI;
+
+const DEFAULT = {
+  apikey: '',
+  basepath: '',
+  schema: '{datum}_{absender}_{betreff}',
+  datefmt: 'YYYY-MM-DD',
+  sep: '-',
+  auto: true,
+  tags: true,
+  cats: 'Rechnung, Vertrag, Kontoauszug, Behörde, Sonstiges',
+  prompt: `Du bist ein Dokumenten-Management-Experte. Analysiere das Dokument und antworte NUR mit JSON (kein Markdown):
+{
+  "kategorie": "Rechnung|Vertrag|Kontoauszug|Behörde|Sonstiges",
+  "datum": "YYYY-MM-DD oder leer wenn unbekannt",
+  "absender": "Firmen- oder Personenname max 30 Zeichen",
+  "betreff": "Kurzbeschreibung 3-5 Wörter",
+  "neuer_dateiname": "datum_absender_betreff ohne Sonderzeichen",
+  "schlagworte": ["tag1","tag2","tag3"],
+  "zusammenfassung": "Ein Satz was das Dokument ist"
+}`,
+  folders: [
+    { key: 'Rechnung',    path: 'Rechnungen\\{YYYY}\\{absender}' },
+    { key: 'Vertrag',     path: 'Verträge\\{absender}' },
+    { key: 'Kontoauszug', path: 'Bank\\{absender}\\{YYYY}' },
+    { key: 'Behörde',     path: 'Behörden\\{absender}' },
+    { key: 'Sonstiges',   path: 'Sonstiges\\{YYYY}' }
+  ]
+};
+
+let cfg = JSON.parse(JSON.stringify(DEFAULT));
+let docs = [];
+let archive = [];
+let activeCat = 'all';
+
+async function init() {
+  const saved = await api.loadSettings();
+  if (saved) cfg = { ...DEFAULT, ...saved };
+  if (!cfg.basepath) cfg.basepath = await api.getDocumentsPath();
+  applyToUI();
+  archive = await api.loadArchive() || [];
+  updateCounts();
+  checkApiKey();
+}
+
+function applyToUI() {
+  document.getElementById('s-apikey').value = cfg.apikey || '';
+  document.getElementById('s-basepath').value = cfg.basepath || '';
+  document.getElementById('s-schema').value = cfg.schema;
+  document.getElementById('s-datefmt').value = cfg.datefmt;
+  document.getElementById('s-sep').value = cfg.sep;
+  document.getElementById('s-auto').checked = cfg.auto;
+  document.getElementById('s-tags').checked = cfg.tags;
+  document.getElementById('s-cats').value = cfg.cats;
+  document.getElementById('s-prompt').value = cfg.prompt;
+  renderFolderList();
+  updatePreview();
+}
+
+function saveSettings() {
+  cfg.apikey   = document.getElementById('s-apikey').value.trim();
+  cfg.basepath = document.getElementById('s-basepath').value.trim();
+  cfg.schema   = document.getElementById('s-schema').value.trim();
+  cfg.datefmt  = document.getElementById('s-datefmt').value;
+  cfg.sep      = document.getElementById('s-sep').value;
+  cfg.auto     = document.getElementById('s-auto').checked;
+  cfg.tags     = document.getElementById('s-tags').checked;
+  cfg.cats     = document.getElementById('s-cats').value;
+  cfg.prompt   = document.getElementById('s-prompt').value;
+  api.saveSettings(cfg);
+  checkApiKey();
+  toast('Einstellungen gespeichert ✓');
+}
+
+function resetSettings() {
+  cfg = JSON.parse(JSON.stringify(DEFAULT));
+  applyToUI();
+  toast('Auf Standardwerte zurückgesetzt');
+}
+
+function checkApiKey() {
+  const banner = document.getElementById('api-banner');
+  banner.classList.toggle('hidden', !!cfg.apikey);
+}
+
+async function testApiKey() {
+  const key = document.getElementById('s-apikey').value.trim();
+  if (!key) { toast('Bitte API-Key eingeben'); return; }
+  toast('Teste Verbindung…');
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 10, messages: [{ role: 'user', content: 'Hi' }] })
+    });
+    if (r.ok) toast('✓ API-Key funktioniert!');
+    else toast('✗ Ungültiger API-Key (Status ' + r.status + ')');
+  } catch(e) { toast('✗ Verbindungsfehler: ' + e.message); }
+}
+
+async function selectBaseFolder() {
+  const p = await api.selectFolder();
+  if (p) { document.getElementById('s-basepath').value = p; cfg.basepath = p; }
+}
+
+async function openBaseFolder() {
+  if (cfg.basepath) api.openFolder(cfg.basepath);
+  else toast('Bitte zuerst Basisordner in Einstellungen festlegen');
+}
+
+function renderFolderList() {
+  document.getElementById('folder-list').innerHTML = cfg.folders.map((f,i) => `
+    <div class="folder-row">
+      <span class="fr-key">${f.key}</span>
+      <span class="fr-path" title="${f.path}">${f.path}</span>
+      <button class="fr-btn" onclick="editFolderPath(${i})">✏️</button>
+      <button class="fr-btn" style="color:var(--danger)" onclick="removeFolder(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function editFolderPath(i) {
+  const p = prompt('Pfad für "' + cfg.folders[i].key + '":', cfg.folders[i].path);
+  if (p !== null) { cfg.folders[i].path = p; renderFolderList(); }
+}
+
+function removeFolder(i) { cfg.folders.splice(i,1); renderFolderList(); }
+
+function addFolder() {
+  const k = prompt('Kategoriename:'); if (!k) return;
+  const p = prompt('Unterordner-Pfad:', k + '\\{YYYY}'); if (!p) return;
+  cfg.folders.push({ key: k, path: p });
+  renderFolderList();
+}
+
+function updatePreview() {
+  const s = document.getElementById('s-schema').value || '{datum}_{absender}_{betreff}';
+  const sep = cfg.sep || '-';
+  const prev = s.replace('{datum}','2024-03-15').replace('{absender}','Deutsche' + sep + 'Telekom').replace('{betreff}','Rechnung' + sep + 'Maerz').replace('{kategorie}','Rechnung');
+  document.getElementById('name-preview').textContent = prev + '.pdf';
+}
+
+// ---- FILE HANDLING ----
+
+async function openFileDialog() {
+  const files = await api.openFiles();
+  files.forEach(f => addToQueue(f));
+}
+
+async function openFolderScan() {
+  const folder = await api.selectFolder();
+  if (!folder) return;
+  const files = await api.scanFolder(folder);
+  if (!files.length) { toast('Keine unterstützten Dateien gefunden'); return; }
+  files.forEach(f => addToQueue(f));
+  toast(files.length + ' Dateien gefunden');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag');
+  Array.from(e.dataTransfer.files).forEach(f => {
+    addToQueue({ path: f.path, name: f.name, size: f.size, ext: f.name.split('.').pop().toLowerCase() });
+  });
+}
+
+function addToQueue(f) {
+  const id = Date.now() + Math.random();
+  const doc = { id, ...f, status: 'pending', result: null, progress: 0, ts: Date.now() };
+  docs.unshift(doc);
+  renderQueue();
+  if (cfg.auto && cfg.apikey) setTimeout(() => analyzeDoc(doc), 300);
+}
+
+function renderQueue() {
+  const el = document.getElementById('queue');
+  const empty = document.getElementById('queue-empty');
+  const active = docs.filter(d => d.status !== 'archived');
+  empty.style.display = active.length ? 'none' : 'flex';
+  const existing = new Set(Array.from(el.querySelectorAll('.qi')).map(e => e.dataset.id));
+  active.forEach(d => {
+    if (!existing.has(String(d.id))) {
+      const div = document.createElement('div');
+      div.className = 'qi'; div.dataset.id = d.id;
+      el.appendChild(div);
+    }
+    paintQI(d);
+  });
+  Array.from(el.querySelectorAll('.qi')).forEach(el2 => {
+    if (!active.find(d => String(d.id) === el2.dataset.id)) el2.remove();
+  });
+}
+
+function fileIcon(ext) {
+  if (ext === 'pdf') return '📄';
+  if (['jpg','jpeg','png','webp','gif'].includes(ext)) return '🖼️';
+  if (['doc','docx'].includes(ext)) return '📝';
+  return '📁';
+}
+
+function paintQI(doc) {
+  const el = document.querySelector(`.qi[data-id="${doc.id}"]`);
+  if (!el) return;
+  const sz = doc.size > 1e6 ? (doc.size/1e6).toFixed(1)+' MB' : Math.round(doc.size/1024)+' KB';
+  const badges = { pending:'<span class="badge b-pending">Wartend</span>', analyzing:'<span class="badge b-analyzing">Analyse…</span>', done:'<span class="badge b-done">Fertig ✓</span>', error:'<span class="badge b-error">Fehler</span>' };
+  let result = '';
+  if (doc.result) {
+    const r = doc.result;
+    const fp = resolveFolder(r);
+    const tags = (r.schlagworte||[]).map(t=>`<span class="tag">${t}</span>`).join('');
+    result = `<div class="qi-result">
+      <div class="qr-row"><span class="qr-label">Kategorie</span><span class="qr-val">${r.kategorie||'—'}</span></div>
+      <div class="qr-row"><span class="qr-label">Datum</span><span class="qr-val">${r.datum||'—'}</span></div>
+      <div class="qr-row"><span class="qr-label">Absender</span><span class="qr-val">${r.absender||'—'}</span></div>
+      <div class="qr-row"><span class="qr-label">Betreff</span><span class="qr-val">${r.betreff||'—'}</span></div>
+      <div class="qr-row"><span class="qr-label">Neuer Name</span><span class="qr-val accent">${r.neuer_dateiname||'—'}.${doc.ext}</span></div>
+      <div class="qr-row"><span class="qr-label">Zielordner</span><span class="qr-val path">${fp}</span></div>
+      ${r.zusammenfassung ? `<div class="qr-row"><span class="qr-label">Zusammenfassung</span><span class="qr-val" style="font-weight:400">${r.zusammenfassung}</span></div>` : ''}
+      ${tags ? `<div style="margin-top:6px">${tags}</div>` : ''}
+    </div>`;
+  }
+  const prog = doc.status === 'analyzing' ? `<div class="progress"><div class="prog-fill" style="width:${doc.progress||5}%" id="pf-${doc.id}"></div></div>` : '';
+  let actions = '';
+  if (doc.status === 'pending') actions = `<div class="qi-actions"><button class="btn primary" onclick="analyzeDoc(docs.find(d=>d.id==${doc.id}))">KI analysieren</button><button class="btn danger" onclick="removeDoc(${doc.id})">Entfernen</button></div>`;
+  if (doc.status === 'done')    actions = `<div class="qi-actions"><button class="btn primary" onclick="archiveDoc(${doc.id})">📁 Ablegen</button><button class="btn" onclick="analyzeDoc(docs.find(d=>d.id==${doc.id}))">Neu analysieren</button><button class="btn danger" onclick="removeDoc(${doc.id})">Entfernen</button></div>`;
+  if (doc.status === 'error')   actions = `<div class="qi-actions"><button class="btn primary" onclick="analyzeDoc(docs.find(d=>d.id==${doc.id}))">Erneut versuchen</button><button class="btn danger" onclick="removeDoc(${doc.id})">Entfernen</button></div>`;
+  el.innerHTML = `<div class="qi-head"><div class="qi-icon">${fileIcon(doc.ext)}</div><div class="qi-name" title="${doc.name}">${doc.name}</div><div class="qi-size">${sz}</div>${badges[doc.status]||''}</div>${prog}${result}${actions}`;
+}
+
+function resolveFolder(r) {
+  const base = cfg.basepath || '';
+  const entry = cfg.folders.find(f => f.key === r.kategorie) || { path: 'Sonstiges' };
+  const year = (r.datum||'').slice(0,4) || new Date().getFullYear();
+  const month = (r.datum||'').slice(5,7) || String(new Date().getMonth()+1).padStart(2,'0');
+  const abs = sanitize(r.absender||'Unbekannt');
+  const rel = entry.path.replace('{YYYY}',year).replace('{MM}',month).replace('{absender}',abs);
+  return base ? base + '\\' + rel : rel;
+}
+
+function sanitize(s) { return s.replace(/[^a-zA-Z0-9äöüÄÖÜß\-_]/g,'-').replace(/-+/g,'-').slice(0,40); }
+
+function buildFilename(r, ext) {
+  const sep = cfg.sep || '-';
+  const schema = cfg.schema || '{datum}_{absender}_{betreff}';
+  const datum = formatDate(r.datum);
+  const name = schema
+    .replace('{datum}', datum)
+    .replace('{absender}', sanitize(r.absender||'Unbekannt').replace(/\s/g,sep))
+    .replace('{betreff}', sanitize(r.betreff||'Dokument').replace(/\s/g,sep))
+    .replace('{kategorie}', r.kategorie||'Sonstiges');
+  return name + '.' + ext;
+}
+
+function formatDate(d) {
+  if (!d) { const n=new Date(); d=n.toISOString().slice(0,10); }
+  const [y,m,dd] = d.split('-');
+  if (cfg.datefmt === 'DD.MM.YYYY') return `${dd}.${m}.${y}`;
+  if (cfg.datefmt === 'YYYYMMDD') return `${y}${m}${dd}`;
+  return `${y}-${m}-${dd}`;
+}
+
+async function analyzeDoc(doc) {
+  if (!cfg.apikey) { toast('Bitte zuerst API-Key in Einstellungen eingeben'); return; }
+  doc.status = 'analyzing'; doc.progress = 5; paintQI(doc);
+
+  const tick = setInterval(() => {
+    doc.progress = Math.min((doc.progress||5)+7, 80);
+    const pf = document.getElementById('pf-' + doc.id);
+    if (pf) pf.style.width = doc.progress + '%';
+  }, 500);
+
+  try {
+    let messages;
+    const cats = cfg.cats.split(',').map(s=>s.trim()).join('|');
+
+    if (['jpg','jpeg','png','webp'].includes(doc.ext)) {
+      const b64 = await api.readFile(doc.path, 'base64');
+      const mt = doc.ext === 'jpg' ? 'image/jpeg' : 'image/' + doc.ext;
+      messages = [{ role:'user', content:[
+        { type:'image', source:{ type:'base64', media_type: mt, data: b64 }},
+        { type:'text', text:`Analysiere dieses Dokument. Kategorien: ${cats}. Dateiname: ${doc.name}` }
+      ]}];
+    } else if (doc.ext === 'txt') {
+      const txt = await api.readFile(doc.path, 'text');
+      messages = [{ role:'user', content:`Analysiere: ${txt}\n\nKategorien: ${cats}` }];
+    } else {
+      messages = [{ role:'user', content:`Analysiere dieses Dokument anhand des Dateinamens und Kontexts. Dateiname: ${doc.name}. Kategorien: ${cats}` }];
+    }
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-api-key': cfg.apikey, 'anthropic-version':'2023-06-01' },
+      body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:1000, system: cfg.prompt, messages })
+    });
+
+    clearInterval(tick);
+    if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || resp.status); }
+    const data = await resp.json();
+    const raw = (data.content||[]).map(c=>c.text||'').join('');
+    let result;
+    try { result = JSON.parse(raw.replace(/```json|```/g,'').trim()); }
+    catch(e) { result = { kategorie:'Sonstiges', absender:'Unbekannt', betreff: doc.name.replace(/\.[^.]+$/,''), datum:'', schlagworte:[], zusammenfassung: raw.slice(0,120) }; }
+    result.neuer_dateiname = buildFilename(result, doc.ext).replace(/\.[^.]+$/,'');
+    doc.result = result; doc.status = 'done'; doc.progress = 100;
+    paintQI(doc);
+    toast('✓ Analysiert: ' + doc.name);
+  } catch(e) {
+    clearInterval(tick);
+    doc.status = 'error'; paintQI(doc);
+    toast('Fehler: ' + e.message);
+  }
+}
+
+async function archiveDoc(id) {
+  const doc = docs.find(d=>d.id===id);
+  if (!doc || !doc.result) return;
+  const r = doc.result;
+  const folder = resolveFolder(r);
+  const newName = buildFilename(r, doc.ext);
+  const res = await api.saveDocument({ sourcePath: doc.path, targetDir: folder, newName });
+  if (res.success) {
+    const entry = { id, name: newName, originalName: doc.name, result: r, path: res.dest, folder, ts: Date.now(), ext: doc.ext };
+    archive.unshift(entry);
+    await api.saveArchive(archive);
+    doc.status = 'archived';
+    renderQueue(); updateCounts();
+    document.getElementById('today-count').textContent = archive.filter(d=>isToday(d.ts)).length;
+    toast('📁 Abgelegt: ' + newName);
+  } else {
+    toast('Fehler beim Ablegen: ' + res.error);
+  }
+}
+
+function isToday(ts) {
+  const d = new Date(ts), n = new Date();
+  return d.getDate()===n.getDate() && d.getMonth()===n.getMonth() && d.getFullYear()===n.getFullYear();
+}
+
+function removeDoc(id) { docs = docs.filter(d=>d.id!==id); renderQueue(); }
+
+function updateCounts() {
+  document.getElementById('c-all').textContent = archive.length;
+  document.getElementById('total-count').textContent = archive.length;
+  ['Rechnung','Vertrag','Kontoauszug','Behörde','Sonstiges'].forEach(cat => {
+    const el = document.getElementById('c-' + cat);
+    if (el) el.textContent = archive.filter(d=>d.result&&d.result.kategorie===cat).length;
+  });
+}
+
+function filterCat(cat, el) {
+  activeCat = cat;
+  document.querySelectorAll('.sb-item').forEach(e=>e.classList.remove('active'));
+  el.classList.add('active');
+  renderArchive();
+}
+
+function renderArchive(search) {
+  const q = (search !== undefined ? search : document.getElementById('search-inp').value||'').toLowerCase();
+  const sort = document.getElementById('sort-sel').value;
+  const grid = document.getElementById('doc-grid');
+  let list = [...archive];
+  if (activeCat !== 'all') list = list.filter(d=>d.result&&d.result.kategorie===activeCat);
+  if (q) list = list.filter(d => JSON.stringify(d).toLowerCase().includes(q));
+  if (sort==='date-desc') list.sort((a,b)=>b.ts-a.ts);
+  if (sort==='date-asc') list.sort((a,b)=>a.ts-b.ts);
+  if (sort==='name') list.sort((a,b)=>a.name.localeCompare(b.name));
+  if (sort==='cat') list.sort((a,b)=>(a.result?.kategorie||'').localeCompare(b.result?.kategorie||''));
+  if (!list.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🗄️</div><div style="font-size:14px;font-weight:500;color:var(--text)">${q?'Keine Treffer':'Archiv ist leer'}</div></div>`;
+    return;
+  }
+  const catColors = { Rechnung:'#fdf3dc', Vertrag:'#e8f0fb', Kontoauszug:'#eaf3e6', Behörde:'#fceef5', Sonstiges:'var(--bg)' };
+  grid.innerHTML = list.map(doc => {
+    const r = doc.result||{};
+    const tags = (r.schlagworte||[]).map(t=>`<span class="tag">${t}</span>`).join('');
+    return `<div class="doc-card" onclick="api.openFile('${doc.path.replace(/\\/g,'\\\\')}')" title="${r.zusammenfassung||doc.name}">
+      <div class="dc-icon">${fileIcon(doc.ext)}</div>
+      <div class="dc-name">${doc.name}</div>
+      <div class="dc-meta">${r.datum||'—'} · ${r.absender||'—'}</div>
+      <div class="dc-path">${doc.folder||''}</div>
+      <div class="dc-tags"><span class="tag" style="background:${catColors[r.kategorie]||'var(--bg)'}">${r.kategorie||'—'}</span>${tags}</div>
+    </div>`;
+  }).join('');
+}
+
+// TAB SWITCHING
+function switchTab(name, el) {
+  document.querySelectorAll('.tb-tab').forEach(t=>t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('visible'));
+  document.getElementById('panel-'+name).classList.add('visible');
+  if (name==='archive') renderArchive();
+}
+function switchTabById(name) {
+  const tabs = document.querySelectorAll('.tb-tab');
+  const idx = ['upload','archive','settings'].indexOf(name);
+  switchTab(name, tabs[idx]);
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+init();
+</script>
+</body>
+</html>
